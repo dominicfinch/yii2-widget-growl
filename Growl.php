@@ -9,6 +9,7 @@
 namespace kartik\growl;
 
 use Yii;
+use yii\base\Exception;
 use yii\helpers\Html;
 use yii\helpers\Json;
 use yii\helpers\ArrayHelper;
@@ -127,6 +128,10 @@ class Growl extends \kartik\base\Widget
      */
     public $linkOptions = [];
     
+    // Allow Growl Notifications to work with AJAX calls //
+    // Allowed Options: 'url', 'method', 'data', 'interval', 'successCallback', 'failCallback' //
+    public $ajaxOptions = [];
+    
     /**
      * @var array the bootstrap growl plugin configuration options
      * @see http://bootstrap-growl.remabledesigns.com/
@@ -211,6 +216,18 @@ class Growl extends \kartik\base\Widget
             Html::tag('div', Html::tag('div', $progressTitle, $this->progressBarOptions), $this->progressContainerOptions) . "\n" .
             Html::a('', '{3}', $this->linkOptions);
         $this->pluginOptions['template'] = Html::tag('div', $content, $this->options);
+        
+        // AJAX AddOn Settings //
+        if( isset($this->ajaxOptions) ) {
+            if( !isset($this->ajaxOptions['url']) )
+                throw new Exception('URL parameter must be specified with ajaxOptions');
+            $this->ajaxOptions['method'] = (isset($this->ajaxOptions['method']) ? $this->ajaxOptions['method'] : 'GET');
+            $this->ajaxOptions['data'] = (isset($this->ajaxOptions['data']) ? $this->ajaxOptions['data'] : null);
+            $this->ajaxOptions['successCallback'] = (isset($this->ajaxOptions['successCallback']) ? $this->ajaxOptions['successCallback'] : null);
+            $this->ajaxOptions['failCallback'] = (isset($this->ajaxOptions['failCallback']) ? $this->ajaxOptions['failCallback'] : null);
+            $this->ajaxOptions['interval'] = (isset($this->ajaxOptions['interval']) ? $this->ajaxOptions['interval'] : null);
+        }
+        
         $this->registerAssets();
     }
 
@@ -235,12 +252,11 @@ class Growl extends \kartik\base\Widget
             return '';
         }
     }
-
+    
     /**
-     * Register client assets
+     * Adjusted version of 'Register client assets' method
      */
-    protected function registerAssets()
-    {
+    protected function registerAssets() {
         $view = $this->getView();
         if (in_array($this->type, self::$_themes)) {
             GrowlAsset::register($view)->addTheme($this->type);
@@ -251,9 +267,30 @@ class Growl extends \kartik\base\Widget
             AnimateAsset::register($view);
         }
         $this->registerPluginOptions('notify');
-        $js = '$.notify(' . Json::encode($this->_settings) . ', ' . $this->_hashVar . ');';
-        if (!empty($this->delay) && $this->delay > 0) {
-            $js = 'setTimeout(function () {' . $js . '}, ' . $this->delay . ');';
+        
+        // Apply AJAX if specified //
+        if( $this->ajaxOptions ) {
+            $js = "$.ajax({
+                url: '{$this->ajaxOptions['url']}',
+                method: '{$this->ajaxOptions['method']}',
+                ".($this->ajaxOptions['data'] ? "data: {$this->ajaxOptions['data']}," : null)."
+            }).success(function(data) {
+                $.notify(".Json::encode($this->_settings).", ".$this->_hashVar.");
+                var successFunction = {$this->ajaxOptions['successCallback']}
+                successFunction.call(this, data);
+            }).fail({$this->ajaxOptions['failCallback']});";
+            
+            // Apply interval if one is passed in - otherwise just call once //
+            if( $this->ajaxOptions['interval'] ) {
+                $js = "setInterval(function() {
+                    {$js}
+                }, {$this->ajaxOptions['interval']});";
+            }
+        } else {
+            $js = '$.notify(' . Json::encode($this->_settings) . ', ' . $this->_hashVar . ');';
+            if (!empty($this->delay) && $this->delay > 0) {
+                $js = 'setTimeout(function () {' . $js . '}, ' . $this->delay . ');';
+            }
         }
         $view->registerJs($js);
     }
