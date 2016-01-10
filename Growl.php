@@ -275,9 +275,25 @@ class Growl extends \kartik\base\Widget
                 method: '{$this->ajaxOptions['method']}',
                 ".($this->ajaxOptions['data'] ? "data: {$this->ajaxOptions['data']}," : null)."
             }).success(function(data) {
-                $.notify(".Json::encode($this->_settings).", ".$this->_hashVar.");
-                var successFunction = {$this->ajaxOptions['successCallback']}
-                successFunction.call(this, data);
+                if( data.success ) {
+                    var notify_settings = ".Json::encode($this->_settings).";
+                    var successFunction = {$this->ajaxOptions['successCallback']}
+                    successFunction.call(this, data, notify_settings);
+                    
+                    // Loop through results - Could have more than one notification at a time //
+                    for(var i=0; i<data.notifications.length; i++) {
+                        // These values can now be determined by the AJAX data sent back //
+                        notify_settings.message = data.notifications[i].body;
+                        notify_settings.title = data.notifications[i].title;
+                        
+                        // Only show if the 'notification.show' variable is true.
+                        // This allows us to poll for notifications without them
+                        // appearing non-stop - Could implement an AJAX callback
+                        // to server side code to dismiss the notification...
+                        if( data.notifications[i].show )
+                            $.notify(notify_settings, ".$this->_hashVar.");
+                    }
+                }
             }).fail({$this->ajaxOptions['failCallback']});";
             
             // Apply interval if one is passed in - otherwise just call once //
