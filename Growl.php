@@ -270,7 +270,7 @@ class Growl extends \kartik\base\Widget
         
         // Apply AJAX if specified //
         if( $this->ajaxOptions ) {
-            $js = "$.ajax({
+            $ajax_js = "$.ajax({
                 url: '{$this->ajaxOptions['url']}',
                 method: '{$this->ajaxOptions['method']}',
                 ".($this->ajaxOptions['data'] ? "data: {$this->ajaxOptions['data']}," : null)."
@@ -296,11 +296,19 @@ class Growl extends \kartik\base\Widget
                 }
             }).fail({$this->ajaxOptions['failCallback']});";
             
-            // Apply interval if one is passed in - otherwise just call once //
+            // Apply interval if one is passed in //
             if( $this->ajaxOptions['interval'] ) {
-                $js = "setInterval(function() {
-                    {$js}
+                $js = "
+                // Call on page load up //
+                {$ajax_js}
+                
+                // Call on an interval //
+                setInterval(function() {
+                    {$ajax_js}
                 }, {$this->ajaxOptions['interval']});";
+            } else {
+                // Call on page load up but don't repeat //
+                $js = $ajax_js;
             }
         } else {
             $js = '$.notify(' . Json::encode($this->_settings) . ', ' . $this->_hashVar . ');';
