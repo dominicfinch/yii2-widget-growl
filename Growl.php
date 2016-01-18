@@ -284,7 +284,7 @@ class Growl extends \kartik\base\Widget
                     for(var i=0; i<data.notifications.length; i++) {
                         // These values can now be determined by the AJAX data sent back //
                         notify_settings.message = data.notifications[i].body;
-                        notify_settings.title = data.notifications[i].title;
+                        notify_settings.title = data.notifications[i].title + '<hr>';
                         
                         // Only show if the 'notification.show' variable is true.
                         // This allows us to poll for notifications without them
